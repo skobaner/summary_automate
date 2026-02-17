@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+
+# OS/editor
+.DS_Store
+*.swp
+
+# Local env/secrets
+.env
+.env.*
+!.env.azure.example
+
+# Generated artifacts
+output/
+runs/
+*.log
+
+# Data and source documents (do not commit)
+data/
+*.xlsx
+*.xls
+*.xlsm
+*.pdf
+*.docx
+
+# Historic local folder
+arch/

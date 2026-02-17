@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ITB Report Generator</title>
+  <style>
+    :root {
+      --bg: #f3f7f4;
+      --panel: #ffffff;
+      --text: #1d2939;
+      --muted: #4b5565;
+      --accent: #00684a;
+      --accent-2: #0a7c59;
+      --line: #dbe3dc;
+    }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 20% 20%, #e9f4ee 0, var(--bg) 50%);
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(720px, 100%);
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 24px;
+      box-shadow: 0 12px 40px rgba(14, 55, 37, 0.08);
+    }
+    h1 {
+      margin-top: 0;
+      margin-bottom: 8px;
+      font-size: 28px;
+      letter-spacing: 0.2px;
+    }
+    p {
+      color: var(--muted);
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      margin-top: 16px;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #fff;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .muted-btn {
+      background: #5f6b64;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f7faf8;
+      border: 1px solid var(--line);
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    .hidden {
+      display: none;
+    }
+    .download {
+      margin-top: 14px;
+      display: inline-block;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>ITB Report Generator</h1>
+    <p>Upload one ITB workbook. The backend computes the same report pipeline and optionally emails the result.</p>
+
+    <form id="reportForm">
+      <label for="file">Raw ITB Workbook (.xlsx)</label>
+      <input id="file" name="file" type="file" accept=".xlsx,.xlsm,.xls" required />
+
+      <label for="itb">ITB Number (optional override)</label>
+      <input id="itb" name="itb" type="text" placeholder="e.g. 15" />
+
+      <label for="email">Email address (optional, send report immediately)</label>
+      <input id="email" name="email" type="email" placeholder="name@company.com" />
+
+      <div class="actions">
+        <button id="submitBtn" type="submit">Generate Report</button>
+      </div>
+    </form>
+
+    <div id="status" class="status hidden"></div>
+    <a id="downloadLink" class="download hidden" href="#" target="_blank" rel="noopener">Download PDF</a>
+  </main>
+
+  <script>
+    const form = document.getElementById("reportForm");
+    const statusBox = document.getElementById("status");
+    const downloadLink = document.getElementById("downloadLink");
+    const submitBtn = document.getElementById("submitBtn");
+
+    function setStatus(text) {
+      statusBox.classList.remove("hidden");
+      statusBox.textContent = text;
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      submitBtn.disabled = true;
+      downloadLink.classList.add("hidden");
+      setStatus("Generating report...");
+
+      const data = new FormData();
+      const file = document.getElementById("file").files[0];
+      const email = document.getElementById("email").value.trim();
+      const itb = document.getElementById("itb").value.trim();
+
+      data.append("file", file);
+      if (email) data.append("email", email);
+      if (itb) data.append("itb", itb);
+
+      try {
+        const response = await fetch("/api/reports", {
+          method: "POST",
+          body: data,
+        });
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.detail || "Request failed");
+        }
+
+        const lines = [
+          `Report ID: ${payload.report_id}`,
+          `ITB: ${payload.itb}`,
+          `Email sent: ${payload.emailed ? "Yes" : "No"}`,
+        ];
+        if (payload.email_error) lines.push(`Email error: ${payload.email_error}`);
+
+        setStatus(lines.join("\n"));
+        downloadLink.href = payload.download_url;
+        downloadLink.classList.remove("hidden");
+      } catch (error) {
+        setStatus(`Error: ${error.message}`);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
